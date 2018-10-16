@@ -138,6 +138,10 @@ class Maze:
         'WE'
         >>> m.grid_inner_point_no_object[1][0]
         'NWS'
+        >>> m = Maze('bianjie.txt')
+        >>> m._Maze__int_grid_inner_point()
+        >>> m.grid_inner_point_no_object[0][0]
+        'NW'
         """
         # for 面向对象
 
@@ -158,7 +162,7 @@ class Maze:
             for y in range(self.y_dim):
                 for d in grid_inner_point[x][y].direction:
                     pre = operations[d]((x, y))
-                    if 0 <= pre[0] <= self.x_dim and 0 <= pre[1] <= self.y_dim:
+                    if 0 <= pre[0] <= self.x_dim-1 and 0 <= pre[1] <= self.y_dim-1:
                         grid_inner_point[pre[0]][pre[1]].direction += pre[2]
         self.grid_inner_point = grid_inner_point
         # end for 面向对象
@@ -175,10 +179,14 @@ class Maze:
         for x in range(self.x_dim):
             for y in range(self.y_dim):
                 # grid_inner_point_no_object[x][y] = directions[self.get_inner_point(x, y)]
+                # 遍历本节点可以指向的方向
                 for d in directions[self.get_inner_point(x, y)]:
+                    # 一次添加本节点可以指向的方向
                     grid_inner_point_no_object[x][y] += d
+                    # pre用来接收返回的 指向的方向的下一个节点的坐标和下一个节点的指向方向
                     pre = operations[d]((x, y))
-                    if 0 <= pre[0] <= self.x_dim and 0 <= pre[1] <= self.y_dim:
+                    if 0 <= pre[0] <= self.x_dim-1 and 0 <= pre[1] <= self.y_dim-1:
+                        # 将下一个节点的指向方向添加进去
                         grid_inner_point_no_object[pre[0]][pre[1]] += pre[2]
         self.grid_inner_point_no_object = grid_inner_point_no_object
         # end 不是面向对象
@@ -194,10 +202,20 @@ class Maze:
         1
         >>> m.get_inner_point(7, 5)
         0
+        >>> m = Maze('bianjie.txt')
+        >>> m.get_inner_point(0, 0)
+        0
+        >>> m.get_inner_point(0, 1)
+        1
+        >>> m.get_inner_point(1, 0)
+        2
+        >>> m.get_inner_point(1, 1)
+        0
         """
         return self.grid_maze_raw[y][x]
 
     def __int_grid_point(self):
+
         grid_point_no_object = [[''] * self.y_dim for _ in range(self.x_dim)]
         directions = {
             0: '',
@@ -206,20 +224,17 @@ class Maze:
             3: 'SE',
         }
         operations = {
-            'N': lambda p: (p[0], p[1] - 1, 'S'),
             'S': lambda p: (p[0], p[1] + 1, 'N'),
-            'W': lambda p: (p[0] - 1, p[1], 'E'),
             'E': lambda p: (p[0] + 1, p[1], 'W'),
         }
         for x in range(self.x_dim):
             for y in range(self.y_dim):
-                # grid_inner_point_no_object[x][y] = directions[self.get_inner_point(x, y)]
                 for d in directions[self.get_inner_point(x, y)]:
-                    grid_inner_point_no_object[x][y] += d
+                    grid_point_no_object[x][y] += d
                     pre = operations[d]((x, y))
-                    if 0 <= pre[0] <= self.x_dim and 0 <= pre[1] <= self.y_dim:
-                        grid_inner_point_no_object[pre[0]][pre[1]] += pre[2]
-        self.grid_inner_point_no_object = grid_inner_point_no_object
+                    if 0 <= pre[0] <= self.x_dim-1 and 0 <= pre[1] <= self.y_dim-1:
+                        grid_point_no_object[pre[0]][pre[1]] += pre[2]
+        self.grid_point_no_object = grid_point_no_object
 
     def analyse(self):
         """
@@ -232,15 +247,19 @@ class Maze:
         >>> maze = Maze('labyrinth.txt')
         >>> maze.analyse()
         The maze has 2 gates.
+        >>> maze = Maze('bianjie.txt')
+        >>> maze.analyse()
+        The maze has 2 gates.
         """
         self.__int_grid_inner_point()
+        # self.__int_grid_point()
 
         # ------------GATE------------
         # 可以删掉
         gate_set = set()
         # end 可以删掉
         num_gate = 0
-        for i in {0: 'W', self.x_dim - 2: 'E'}.items():
+        for i in [(0, 'W'), (self.x_dim - 2, 'E')]:
             for j in range(self.y_dim - 1):
                 if i[1] in self.grid_inner_point_no_object[i[0]][j]:
                     num_gate += 1
@@ -248,7 +267,7 @@ class Maze:
                     gate_set.add(((i[0], j), i[1]))
                     # end 可以删掉
         for i in range(self.x_dim - 1):
-            for j in {0: 'N', self.y_dim - 2: 'S'}.items():
+            for j in [(0, 'N'), (self.y_dim - 2, 'S')]:
                 if j[1] in self.grid_inner_point_no_object[i][j[0]]:
                     num_gate += 1
                     # 可以删掉
