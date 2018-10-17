@@ -1,2 +1,5 @@
 # coding=utf-8
-import maze
+from stack_adt import *
+l = []
+s = Stack()
+

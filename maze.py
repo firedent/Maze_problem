@@ -1,35 +1,13 @@
 # Insert your code here
 from queue_adt import *
 from pathlib import Path
+from stack_adt import *
+import time
+import copy
 
 
 class MazeError(Exception):
     pass
-
-
-class InnerPoint:
-    def __init__(self, x, y, raw):
-        directions = {
-            0: 'NW',
-            1: 'W',
-            2: 'N',
-            3: '',
-        }
-        self.x = x
-        self.y = y
-        self.raw = raw
-        self.direction = directions[raw]
-
-    def __repr__(self):
-        return f'InnerPoint({self.x}, {self.y}, {self.raw})'
-
-
-class Point:
-    def __init__(self):
-        self.connect = ''
-
-    def __repr__(self):
-        return f'Point({self.direction})'
 
 
 class Maze:
@@ -121,6 +99,7 @@ class Maze:
         }
         self.grid_point_no_object = self.__int_grid(directions_of_point)
         self.grid_inner_point_no_object = self.__int_grid(directions_of_inner_point)
+        self.cul_de_sacs_set = None
 
     def __int_grid(self, directions):
         """
@@ -185,7 +164,7 @@ class Maze:
             children.append(operators[d]((x, y)))
         return children
 
-    def __traversal_by_bfs(self, x, y, grid, x_l=0, x_r=0, y_t=0, y_b=0):
+    def __traversal_by_bfs(self, x, y, grid, x_l=0, x_r=0, y_t=0, y_b=0, *, key=None):
         # x_l=0, x_r=0, y_t=0, y_b=0修剪grid，分变为：左、右、上、下。
         """
         >>> m = Maze('maze_1.txt')
@@ -218,8 +197,11 @@ class Maze:
             for c in self.__get_children(p[0], p[1], grid):
                 if 0 + x_l <= c[0] <= self.x_dim - 1 - x_r \
                         and 0 + y_t <= c[1] <= self.y_dim - 1 - y_b:
-                    if (c[0], c[1]) not in visited_point:
-                        q.enqueue(c)
+                    if c not in visited_point:
+                        if key is None:
+                            q.enqueue(c)
+                        elif c in key:
+                            q.enqueue(c)
 
         # 返回的set包含起始节点本身
         return visited_point
@@ -235,24 +217,28 @@ class Maze:
         The maze has 8 sets of walls that are all connected.
         The maze has 2 inaccessible inner points.
         The maze has 4 accessible areas.
+        The maze has 3 sets of accessible cul-de-sacs that are all connected.
         >>> maze = Maze('maze_2.txt')
         >>> maze.analyse()
         The maze has 20 gates.
         The maze has 4 sets of walls that are all connected.
         The maze has 4 inaccessible inner points.
         The maze has 13 accessible areas.
+        The maze has 11 sets of accessible cul-de-sacs that are all connected.
         >>> maze = Maze('labyrinth.txt')
         >>> maze.analyse()
         The maze has 2 gates.
         The maze has 2 sets of walls that are all connected.
         The maze has no inaccessible inner point.
         The maze has a unique accessible area.
+        The maze has 8 sets of accessible cul-de-sacs that are all connected.
         >>> maze = Maze('bianjie.txt')
         >>> maze.analyse()
         The maze has 2 gates.
         The maze has walls that are all connected.
         The maze has no inaccessible inner point.
         The maze has a unique accessible area.
+        The maze has no accessible cul-de-sac.
         """
 
         # ------------GATE------------
@@ -303,14 +289,13 @@ class Maze:
         # ------------ACCESSIBLE AREA------------
         # ------------INACCESSIBLE AREA------------
         num_accessible_area = 0
-        num_inaccessible_inner_point = 0
-        visited_inner_point_for_path = set()
+        visited_inner_point_for_area = set()
         for g in gate_set:
-            if g[0] not in visited_inner_point_for_path:
+            if g[0] not in visited_inner_point_for_area:
                 vip = self.__traversal_by_bfs(g[0][0], g[0][1], self.grid_inner_point_no_object, x_r=1, y_b=1)
                 num_accessible_area += 1
-                visited_inner_point_for_path |= vip
-        num_inaccessible_inner_point = (self.y_dim - 1) * (self.x_dim - 1) - len(visited_inner_point_for_path)
+                visited_inner_point_for_area |= vip
+        num_inaccessible_inner_point = (self.y_dim - 1) * (self.x_dim - 1) - len(visited_inner_point_for_area)
         accessible_area_output_dict = {
             0: 'no accessible area.',
             1: 'a unique accessible area.'
@@ -319,17 +304,79 @@ class Maze:
             0: 'no inaccessible inner point.',
             1: 'a unique inaccessible inner point.'
         }
-        t_str = f"{num_inaccessible_inner_point} inaccessible inner points."
+        t_str_for_area_output = f"{num_inaccessible_inner_point} inaccessible inner points."
         print(f'The maze has '
-              f'{inaccessible_point_output_dict.get(num_inaccessible_inner_point, t_str)}')
+              f'{inaccessible_point_output_dict.get(num_inaccessible_inner_point, t_str_for_area_output)}')
         print(f'The maze has '
               f'{accessible_area_output_dict.get(num_accessible_area, f"{num_accessible_area} accessible areas.")}')
         # ------------END INACCESSIBLE AREA------------
         # ------------END ACCESSIBLE AREA------------
 
+        # ------------CUL-DE-SACS------------
+        # 创建grid_inner_point的替身
+        grid_inner_point_copied = copy.deepcopy(self.grid_inner_point_no_object)
+        # 所有cul_de_sacs
+        cul_de_sacs_set = set()
+        # 初始出度为1的节点
+        initial_cul_de_sacs_set = set()
+        # 首先在可到达节点里找出所有出度是1的节点，并放到队列里
+        q = Queue()
+        for p in visited_inner_point_for_area:
+            if len(self.grid_inner_point_no_object[p[0]][p[1]]) == 1:
+                q.enqueue(p)
+                initial_cul_de_sacs_set.add(p)
+        # 方向对应关系
+        modify_direction_dict = {
+            'S': 'N',
+            'N': 'S',
+            'W': 'E',
+            'E': 'W'
+        }
+        while not q.is_empty():
+            # 从队列中取出一个来
+            current_point = q.dequeue()
+            cul_de_sacs_set.add(current_point)
+            # 找到此节点相邻节点
+            next_point = self.__get_children(current_point[0], current_point[1], grid_inner_point_copied)[0]
+            if 0 <= next_point[0] <= self.x_dim - 2 and 0 <= next_point[1] <= self.y_dim - 2:
+                # 更改相邻节点的direction
+                grid_inner_point_copied[next_point[0]][next_point[1]] = \
+                    grid_inner_point_copied[next_point[0]][next_point[1]].replace(
+                        modify_direction_dict[grid_inner_point_copied[current_point[0]][current_point[1]]],
+                        ''
+                    )
+                # 如果当前节点也变成出度为1的节点了，就放到队列里
+                if len(grid_inner_point_copied[next_point[0]][next_point[1]]) == 1:
+                    q.enqueue(next_point)
+
+        # 开始暴力解法
+        num_cul_de_sacs_set = 0
+        visited_cul_de_sacs = set()
+        for cul in sorted(initial_cul_de_sacs_set):
+            if cul not in visited_cul_de_sacs:
+                visited_cul_de_sacs |= self.__traversal_by_bfs(cul[0], cul[1], self.grid_inner_point_no_object, x_r=1,
+                                                               y_b=1, key=cul_de_sacs_set)
+                num_cul_de_sacs_set += 1
+
+        # display需要用到
+        self.cul_de_sacs_set = cul_de_sacs_set
+        cul_de_sacs_output_dict = {
+            0: 'no accessible cul-de-sac.',
+            1: 'accessible cul-de-sacs that are all connected.'
+        }
+        t_str_for_cul_output = f'{num_cul_de_sacs_set} sets of accessible cul-de-sacs that are all connected.'
+        print(f'The maze has {cul_de_sacs_output_dict.get(num_cul_de_sacs_set, t_str_for_cul_output)}')
+        # ------------END CUL-DE-SACS------------
+
     def display(self):
         """
-        >>> m = Maze('maze_2.txt')
+        >>> m = Maze('maze_1.txt')
+        >>> m.analyse()
+        The maze has 12 gates.
+        The maze has 8 sets of walls that are all connected.
+        The maze has 2 inaccessible inner points.
+        The maze has 4 accessible areas.
+        The maze has 3 sets of accessible cul-de-sacs that are all connected.
         >>> m.display()
         """
         tex_content_head = '\\documentclass[10pt]{article}\n' \
@@ -391,13 +438,27 @@ class Maze:
             for x in range(self.x_dim):
                 if self.grid_point_no_object[x][y] == '':
                     tex_content_pillars.append(f'    \\fill[green] ({x},{y}) circle(0.2);\n')
-
         # ----------END PILLAR----------
+
+        # ----------CUL-DE-SACS----------
+        tex_content_cul_de_sacs = list()
+        tex_content_cul_de_sacs.append('% Inner points in accessible cul-de-sacs\n')
+        for i in sorted(self.cul_de_sacs_set):
+            tex_content_cul_de_sacs.append(f'    \\node at ({i[0]+0.5},{i[1]+0.5}) ''{};\n')
+        # ----------END CUL-DE-SACS----------
+
         # 写入result文件
         # with open(self.file_path.stem + '.tex') as f:
         with open('test_output.tex', mode='w') as f:
             f.write(tex_content_head)
             f.writelines(tex_content_walls)
             f.writelines(tex_content_pillars)
+            f.writelines(tex_content_cul_de_sacs)
             f.write(tex_content_tail)
 
+
+# t1 = time.time()
+# m = Maze('maze_2.txt')
+# m.analyse()
+# t2 = time.time()
+# print(t2 - t1)
