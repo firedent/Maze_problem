@@ -2,6 +2,7 @@
 from queue_adt import *
 from pathlib import Path
 
+
 class MazeError(Exception):
     pass
 
@@ -106,40 +107,48 @@ class Maze:
         self.grid_maze_raw = grid_maze_raw
         self.x_dim = length
         self.y_dim = len(grid_maze_raw)
-        self.grid_point_no_object = None
-        self.grid_inner_point_no_object = None
+        directions_of_point = {
+            0: '',
+            1: 'E',
+            2: 'S',
+            3: 'SE'
+        }
+        directions_of_inner_point = {
+            0: 'NW',
+            1: 'W',
+            2: 'N',
+            3: ''
+        }
+        self.grid_point_no_object = self.__int_grid(directions_of_point)
+        self.grid_inner_point_no_object = self.__int_grid(directions_of_inner_point)
 
     def __int_grid(self, directions):
         """
         >>> m = Maze('maze_1.txt')
-        >>> p = m._Maze__int_grid({0: '',1: 'E',2: 'S',3: 'SE'})
-        >>> ip = m._Maze__int_grid({0: 'NW',1: 'W',2: 'N',3: ''})
-        >>> ip[6][4]
+        >>> m.grid_inner_point_no_object[6][4]
         'S'
-        >>> ip[5][1]
+        >>> m.grid_inner_point_no_object[5][1]
         'NW'
-        >>> ip[4][4]
+        >>> m.grid_inner_point_no_object[4][4]
         'W'
-        >>> ip[0][0]
+        >>> m.grid_inner_point_no_object[0][0]
         'WE'
-        >>> ip[1][0]
+        >>> m.grid_inner_point_no_object[1][0]
         'NWS'
-        >>> p[0][0]
+        >>> m.grid_point_no_object[0][0]
         'E'
-        >>> p[7][0]
+        >>> m.grid_point_no_object[7][0]
         'W'
-        >>> p[7][5]
+        >>> m.grid_point_no_object[7][5]
         'N'
-        >>> p[0][5]
+        >>> m.grid_point_no_object[0][5]
         'NE'
         >>> m = Maze('bianjie.txt')
-        >>> p = m._Maze__int_grid({0: '',1: 'E',2: 'S',3: 'SE'})
-        >>> ip = m._Maze__int_grid({0: 'NW',1: 'W',2: 'N',3: ''})
-        >>> ip[0][0]
+        >>> m.grid_inner_point_no_object[0][0]
         'NW'
-        >>> p[0][0]
+        >>> m.grid_point_no_object[0][0]
         ''
-        >>> p[1][1]
+        >>> m.grid_point_no_object[1][1]
         'WN'
         """
         grid = [[''] * self.y_dim for _ in range(self.x_dim)]
@@ -180,8 +189,6 @@ class Maze:
         # x_l=0, x_r=0, y_t=0, y_b=0修剪grid，分变为：左、右、上、下。
         """
         >>> m = Maze('maze_1.txt')
-        >>> m.grid_point_no_object = m._Maze__int_grid({0: '',1: 'E',2: 'S',3: 'SE'})
-        >>> m.grid_inner_point_no_object = m._Maze__int_grid({0: 'NW',1: 'W',2: 'N',3: ''})
         >>> sorted(m._Maze__traversal_by_bfs(4,2,m.grid_point_no_object))
         [(2, 0), (2, 1), (2, 2), (3, 0), (3, 1), (3, 2), (4, 1), (4, 2), (4, 3), (5, 2), (6, 0), (6, 1), (6, 2), (7, 0)]
         >>> sorted(m._Maze__traversal_by_bfs(1,3,m.grid_point_no_object))
@@ -193,8 +200,6 @@ class Maze:
         >>> sorted(m._Maze__traversal_by_bfs(0,1,m.grid_inner_point_no_object,x_r=1,y_b=1))
         [(0, 1)]
         >>> m = Maze('maze_2.txt')
-        >>> m.grid_point_no_object = m._Maze__int_grid({0: '',1: 'E',2: 'S',3: 'SE'})
-        >>> m.grid_inner_point_no_object = m._Maze__int_grid({0: 'NW',1: 'W',2: 'N',3: ''})
         >>> sorted(m._Maze__traversal_by_bfs(4,2,m.grid_point_no_object))
         [(0, 1), (0, 2), (0, 3), (0, 4), (1, 0), (1, 1), (1, 2), (1, 3), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)]
         >>> sorted(m._Maze__traversal_by_bfs(4,0,m.grid_inner_point_no_object,x_r=1,y_b=1))
@@ -249,21 +254,6 @@ class Maze:
         The maze has no inaccessible inner point.
         The maze has a unique accessible area.
         """
-
-        directions_of_point = {
-            0: '',
-            1: 'E',
-            2: 'S',
-            3: 'SE'
-        }
-        directions_of_inner_point = {
-            0: 'NW',
-            1: 'W',
-            2: 'N',
-            3: ''
-        }
-        self.grid_point_no_object = self.__int_grid(directions_of_point)
-        self.grid_inner_point_no_object = self.__int_grid(directions_of_inner_point)
 
         # ------------GATE------------
         # gate 第三四问，求accessible area需要用
@@ -320,7 +310,7 @@ class Maze:
                 vip = self.__traversal_by_bfs(g[0][0], g[0][1], self.grid_inner_point_no_object, x_r=1, y_b=1)
                 num_accessible_area += 1
                 visited_inner_point_for_path |= vip
-        num_inaccessible_inner_point = (self.y_dim-1)*(self.x_dim-1) - len(visited_inner_point_for_path)
+        num_inaccessible_inner_point = (self.y_dim - 1) * (self.x_dim - 1) - len(visited_inner_point_for_path)
         accessible_area_output_dict = {
             0: 'no accessible area.',
             1: 'a unique accessible area.'
@@ -338,24 +328,76 @@ class Maze:
         # ------------END ACCESSIBLE AREA------------
 
     def display(self):
-        pillar_set = set()
-        # 遍历grid_point，找到pillar
-        for i in range(self.x_dim):
-            for j in range(self.y_dim):
-                if self.grid_point_no_object[i][j] is '':
-                    pillar_set.add((i,j))
+        """
+        >>> m = Maze('maze_2.txt')
+        >>> m.display()
+        """
         tex_content_head = '\\documentclass[10pt]{article}\n' \
                            '\\usepackage{tikz}\n' \
                            '\\usetikzlibrary{shapes.misc}\n' \
                            '\\usepackage[margin=0cm]{geometry}\n' \
                            '\\pagestyle{empty}\n' \
                            '\\tikzstyle{every node}=[cross out, draw, red]\n' \
+                           '\n' \
                            '\\begin{document}\n' \
+                           '\n' \
+                           '\\vspace*{\\fill}\n' \
+                           '\\begin{center}\n' \
+                           '\\begin{tikzpicture}[x=0.5cm, y=-0.5cm, ultra thick, blue]\n'
+
+        tex_content_tail = '\\end{tikzpicture}\n' \
+                           '\\end{center}\n' \
                            '\\vspace*{\\fill}\n' \
                            '\n' \
-                           '\\begin{center}\n' \
-                           '\n' \
-                           '\\begin{tikzpicture}[x=0.5cm, y=-0.5cm, ultra thick, blue]'
+                           '\\end{document}\n'
+
+        # ----------WALL----------
+        tex_content_walls = list()
+        tex_content_walls.append('% Walls\n')
+        for y in range(self.y_dim):
+            x = 0
+            while x <= self.x_dim - 1:
+                if 'E' not in self.grid_point_no_object[x][y]:
+                    x += 1
+                    continue
+                tmp = list()
+                tmp.append((x, y))
+                for t in range(x + 1, self.x_dim):
+                    if 'E' not in self.grid_point_no_object[t][y]:
+                        tmp.append((t, y))
+                        x = t + 1
+                        break
+                tex_content_walls.append(f'    \\draw ({tmp[0][0]},{tmp[0][1]}) -- ({tmp[1][0]},{tmp[1][1]});\n')
+        for x in range(self.x_dim):
+            y = 0
+            while y <= self.y_dim - 1:
+                if 'S' not in self.grid_point_no_object[x][y]:
+                    y += 1
+                    continue
+                tmp = list()
+                tmp.append((x, y))
+                for t in range(y + 1, self.y_dim):
+                    if 'S' not in self.grid_point_no_object[x][t]:
+                        tmp.append((x, t))
+                        y = t + 1
+                        break
+                tex_content_walls.append(f'    \\draw ({tmp[0][0]},{tmp[0][1]}) -- ({tmp[1][0]},{tmp[1][1]});\n')
+        # ----------END WALL----------
+
+        # ----------PILLAR----------
+        tex_content_pillars = list()
+        tex_content_pillars.append('% Pillars\n')
+        for y in range(self.y_dim):
+            for x in range(self.x_dim):
+                if self.grid_point_no_object[x][y] == '':
+                    tex_content_pillars.append(f'    \\fill[green] ({x},{y}) circle(0.2);\n')
+
+        # ----------END PILLAR----------
         # 写入result文件
         # with open(self.file_path.stem + '.tex') as f:
-        with open(self.file_path.stem + '.tex') as f:
+        with open('test_output.tex', mode='w') as f:
+            f.write(tex_content_head)
+            f.writelines(tex_content_walls)
+            f.writelines(tex_content_pillars)
+            f.write(tex_content_tail)
+
