@@ -1,5 +1,5 @@
 # Insert your code here
-import collections
+from queue_adt import *
 
 
 class MazeError(Exception):
@@ -108,9 +108,6 @@ class Maze:
         self.grid_point_no_object = None
         self.grid_inner_point_no_object = None
 
-
-
-
     def __int_grid(self, directions):
         """
         >>> m = Maze('maze_1.txt')
@@ -165,6 +162,49 @@ class Maze:
                         grid[pre[0]][pre[1]] += pre[2]
         return grid
 
+    def __get_children(self, x, y, grid):
+        children = list()
+        operators = {
+            'N': lambda p: (p[0], y - 1),
+            'S': lambda p: (p[0], p[1] + 1),
+            'W': lambda p: (p[0] - 1, p[1]),
+            'E': lambda p: (p[0] + 1, p[1]),
+        }
+        direction = grid[x][y]
+        for d in direction:
+            children.append(operators[d]((x, y)))
+        return children
+
+    def __traversal_by_bfs(self, x, y, grid):
+        """
+        >>> m = Maze('maze_1.txt')
+        >>> m.grid_point_no_object = m._Maze__int_grid({0: '',1: 'E',2: 'S',3: 'SE'})
+        >>> m.grid_inner_point_no_object = m._Maze__int_grid({0: 'NW',1: 'W',2: 'N',3: ''})
+        >>> sorted(m._Maze__traversal_by_bfs(4,2,m.grid_point_no_object))
+        [(2, 0), (2, 1), (2, 2), (3, 0), (3, 1), (3, 2), (4, 1), (4, 2), (4, 3), (5, 2), (6, 0), (6, 1), (6, 2), (7, 0)]
+        >>> sorted(m._Maze__traversal_by_bfs(1,3,m.grid_point_no_object))
+        [(1, 3)]
+        >>> sorted(m._Maze__traversal_by_bfs(2,0,m.grid_inner_point_no_object))
+        [(2, 0), (2, 1), (3, 1)]
+        >>> sorted(m._Maze__traversal_by_bfs(3,0,m.grid_inner_point_no_object))
+        [(3, 0), (4, 0), (4, 1), (5, 0), (5, 1)]
+        >>> sorted(m._Maze__traversal_by_bfs(0,1,m.grid_inner_point_no_object))
+        [(0, 1)]
+        """
+        visited_point = set()
+        q = Queue()
+        q.enqueue((x, y))
+        while not q.is_empty():
+            p = q.dequeue()
+            visited_point.add(p)
+            for c in self.__get_children(p[0], p[1], grid):
+                if 0 <= c[0] <= self.x_dim - 1 and 0 <= c[1] <= self.y_dim - 1:
+                    if (c[0], c[1]) not in visited_point:
+                        q.enqueue(c)
+
+        # 返回的set包含起始节点本身
+        return visited_point
+
     def get_inner_point(self, x, y):
         return self.grid_maze_raw[y][x]
 
@@ -173,15 +213,19 @@ class Maze:
         >>> maze = Maze('maze_1.txt')
         >>> maze.analyse()
         The maze has 12 gates.
+        The maze has 8 sets of walls that are all connected.
         >>> maze = Maze('maze_2.txt')
         >>> maze.analyse()
         The maze has 20 gates.
+        The maze has 4 sets of walls that are all connected.
         >>> maze = Maze('labyrinth.txt')
         >>> maze.analyse()
         The maze has 2 gates.
+        The maze has 2 sets of walls that are all connected.
         >>> maze = Maze('bianjie.txt')
         >>> maze.analyse()
         The maze has 2 gates.
+        The maze has walls that are all connected.
         """
 
         directions_of_point = {
@@ -225,6 +269,26 @@ class Maze:
         }
         print(f'The maze has {gate_output_dict.get(num_gate, f"{num_gate} gates.")}')
         # ------------END GATE------------
+
+        # ------------WALL------------
+        # 遍历节点
+        num_set_of_wall = 0
+        visited_point_for_wall = set()
+        for x in range(self.x_dim):
+            for y in range(self.y_dim):
+                if (x, y) not in visited_point_for_wall:
+                    vp = self.__traversal_by_bfs(x, y, self.grid_point_no_object)
+                    if len(vp) != 1:
+                        num_set_of_wall += 1
+                    visited_point_for_wall |= vp
+        # 字典映射
+        gate_output_dict = {
+            0: 'no wall.',
+            1: 'walls that are all connected.'
+        }
+        print(f'The maze has '
+              f'{gate_output_dict.get(num_set_of_wall,f"{num_set_of_wall} sets of walls that are all connected.")}')
+        # ------------END WALL------------
 
     def display(self):
         pass
