@@ -9,6 +9,7 @@ class MazeError(Exception):
 
 
 class Maze:
+    # 根据N，S，W，E确定下一个点的坐标
     NEIGHBOUR = {
         'N': lambda p: (p[0], p[1] - 1),
         'S': lambda p: (p[0], p[1] + 1),
@@ -16,6 +17,7 @@ class Maze:
         'E': lambda p: (p[0] + 1, p[1])
     }
 
+    # S的反方向是N，N的反方向是S
     OPPOSITION = {
         'S': 'N',
         'N': 'S',
@@ -24,7 +26,6 @@ class Maze:
     }
 
     def __init__(self, filename):
-
         self.file_path = Path(filename)
         with open(self.file_path) as f:
             lines = f.read().splitlines()
@@ -79,12 +80,14 @@ class Maze:
         # grid的纵长
         self.y_dim = len(grid_maze_raw)
 
+        # 当前point对应的inner point为0时，point不与任何point相连
         directions_of_point = {
             0: '',
             1: 'E',
             2: 'S',
             3: 'SE'
         }
+        # 当前inner point为0时，inner point一定可以和N，W相连，至于是否可以和S，E相连，不是这个点的值可以决定的。
         directions_of_inner_point = {
             0: 'NW',
             1: 'W',
@@ -92,10 +95,12 @@ class Maze:
             3: ''
         }
 
+        # point和inner point矩阵
         self.grid_point = self.__int_grid(directions_of_point)
         self.grid_inner_point = self.__int_grid(directions_of_inner_point)
 
         # ------------GATE------------
+        # 遍历四个边，有对应（上方的边要有N缺口，下方的边要有S缺口）缺口的就是门。
         # gate 第三四问，求accessible area需要用
         # gate结构：((门X坐标, 门Y坐标), (进门X坐标, 进门Y坐标))
         gate_set = set()
@@ -119,13 +124,17 @@ class Maze:
         # ------------END GATE------------
 
         # ------------WALL------------
-        # 遍历节点
+        # 左上角开始遍历整个point grid（如果这个点存在于visited中就跳过），用广度优先遍历找出所有和她相连或间接相连的点，把这些点放入visited中。
         num_set_of_wall = 0
         visited_point_for_wall = set()
+        # 遍历整个grid point
         for x in range(self.x_dim):
             for y in range(self.y_dim):
+                # 如果当前点已经存在与visited就跳过
                 if (x, y) not in visited_point_for_wall:
+                    # 返回所有和这个点间接相连的点，包括这个点
                     vp = self.__traversal_by_bfs(x, y, self.grid_point)
+                    # 如果只有这个点，表示这不是一堵墙，这是一个pillar
                     if len(vp) != 1:
                         num_set_of_wall += 1
                     visited_point_for_wall |= vp
@@ -309,14 +318,12 @@ class Maze:
         return self.grid_maze_raw[y][x]
 
     def analyse(self):
-        # ------------GATE------------
         gate_output_dict = {
             0: 'no gate.',
             1: 'a single gate.'
         }
         print(f'The maze has {gate_output_dict.get(self.num_gate, f"{self.num_gate} gates.")}')
 
-        # ------------WALL------------
         wall_output_dict = {
             0: 'no wall.',
             1: 'walls that are all connected.'
@@ -324,7 +331,6 @@ class Maze:
         print(f'The maze has '
               f'{wall_output_dict.get(self.num_set_of_wall,f"{self.num_set_of_wall} sets of walls that are all connected.")}')
 
-        # ------------INACCESSIBLE AREA------------
         inaccessible_point_output_dict = {
             0: 'no inaccessible inner point.',
             1: 'a unique inaccessible inner point.'
@@ -332,34 +338,27 @@ class Maze:
         t_str_for_area_output = f"{self.num_inaccessible_inner_point} inaccessible inner points."
         print(f'The maze has '
               f'{inaccessible_point_output_dict.get(self.num_inaccessible_inner_point, t_str_for_area_output)}')
-        # ------------END INACCESSIBLE AREA------------
 
-        # ------------ACCESSIBLE AREA------------
         accessible_area_output_dict = {
             0: 'no accessible area.',
             1: 'a unique accessible area.'
         }
         print(f'The maze has '
               f'{accessible_area_output_dict.get(self.num_accessible_area, f"{self.num_accessible_area} accessible areas.")}')
-        # ------------END ACCESSIBLE AREA------------
 
-        # ------------CUL-DE-SACS------------
         cul_de_sacs_output_dict = {
             0: 'no accessible cul-de-sac.',
             1: 'accessible cul-de-sacs that are all connected.'
         }
         t_str_for_cul_output = f'{self.num_cul_de_sacs_set} sets of accessible cul-de-sacs that are all connected.'
         print(f'The maze has {cul_de_sacs_output_dict.get(self.num_cul_de_sacs_set, t_str_for_cul_output)}')
-        # ------------END CUL-DE-SACS------------
 
-        # ------------PATH------------
         entry_exit_path_output_dict = {
             0: 'no entry-exit path with no intersection not to cul-de-sacs.',
             1: 'a unique entry-exit path with no intersection not to cul-de-sacs.'
         }
         t_str_for_path_output = f'{self.num_entry_exit_path} entry-exit paths with no intersections not to cul-de-sacs.'
         print(f'The maze has {entry_exit_path_output_dict.get(self.num_entry_exit_path, t_str_for_path_output)}')
-        # ------------END PATH------------
 
     def display(self):
         tex_content_head = '\\documentclass[10pt]{article}\n' \
