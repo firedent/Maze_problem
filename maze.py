@@ -51,12 +51,11 @@ class Maze:
                 ele = []
                 # str -> int & 分离数字
                 for i in line:
-                    i_int = int(i)
-                    if i_int in {0, 1, 2, 3}:
-                        ele.append(i_int)
+                    if i in {'0', '1', '2', '3'}:
+                        ele.append(int(i))
                     # 如果不是那几个数，就抛出异常
                     else:
-                        print('数字不存在{0,1,2,3}')
+                        # print('数字不存在{0,1,2,3}')
                         raise MazeError('Incorrect input.')
                 # 每行最后一位不可能是1或3
                 if ele[-1] == 1 or ele[-1] == 3:
@@ -125,6 +124,7 @@ class Maze:
 
         # ------------WALL------------
         # 左上角开始遍历整个point grid（如果这个点存在于visited中就跳过），用广度优先遍历找出所有和她相连或间接相连的点，把这些点放入visited中。
+        pillar_set = set()
         num_set_of_wall = 0
         visited_point_for_wall = set()
         # 遍历整个grid point
@@ -135,9 +135,15 @@ class Maze:
                     # 返回所有和这个点间接相连的点，包括这个点
                     vp = self.__traversal_by_bfs(x, y, self.grid_point)
                     # 如果只有这个点，表示这不是一堵墙，这是一个pillar
-                    if len(vp) != 1:
+                    if len(vp) == 1:
+                        pillar_set |= vp
+                    # 如果返回一个以上的点，表示是一堵墙
+                    else:
                         num_set_of_wall += 1
-                    visited_point_for_wall |= vp
+                        # 讲道理，是要把这个写在里面的。
+                        visited_point_for_wall |= vp
+                    # visited_point_for_wall |= vp
+        self.pillar_set = pillar_set
         self.num_set_of_wall = num_set_of_wall
         # ------------END WALL------------
 
@@ -416,10 +422,12 @@ class Maze:
         # ----------PILLAR----------
         tex_content_pillars = list()
         tex_content_pillars.append('% Pillars\n')
-        for y in range(self.y_dim):
-            for x in range(self.x_dim):
-                if self.grid_point[x][y] == '':
-                    tex_content_pillars.append(f'    \\fill[green] ({x},{y}) circle(0.2);\n')
+        for pillar in sorted(self.pillar_set, key=lambda p: (p[1], p[0])):
+            tex_content_pillars.append(f'    \\fill[green] ({pillar[0]},{pillar[1]}) circle(0.2);\n')
+        # for y in range(self.y_dim):
+        #     for x in range(self.x_dim):
+        #         if self.grid_point[x][y] == '':
+        #             tex_content_pillars.append(f'    \\fill[green] ({x},{y}) circle(0.2);\n')
         # ----------END PILLAR----------
 
         # ----------CUL-DE-SACS----------
